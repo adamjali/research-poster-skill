@@ -1,0 +1,6 @@
+python-pptx>=1.0
+matplotlib
+pdfplumber
+pypdfium2
+pillow
+pypdf

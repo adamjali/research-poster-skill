@@ -1,0 +1,15 @@
+{
+  "name": "research-poster",
+  "owner": { "name": "adamjali" },
+  "plugins": [
+    {
+      "name": "research-poster",
+      "source": "./",
+      "description": "Turn a PDF abstract into a polished, fully-editable scientific conference poster with native editable charts and verified citations.",
+      "author": { "name": "adamjali" },
+      "repository": "https://github.com/adamjali/research-poster-skill",
+      "license": "MIT",
+      "keywords": ["poster","scientific-poster","research-poster","conference-poster","eposter","pptx","academic"]
+    }
+  ]
+}
