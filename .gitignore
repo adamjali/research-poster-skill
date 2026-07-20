@@ -4,3 +4,6 @@ __pycache__/
 # generated demo artifacts (the example scripts write these)
 skills/research-poster/references/examples/example_poster.*
 skills/research-poster/references/examples/chart_*.png
+
+# PowerPoint lock/temp files
+~$*

@@ -6,9 +6,13 @@
 # (self-contained, no poppler needed).
 set -u
 SRC="$1"; PDF="$2"; PNG="$3"; SCALE="${4:-1.7}"
-rm -f "$PDF"
-OUTDIR="$(cd "$(dirname "$PDF")" && pwd)"
+# Resolve to absolute paths: AppleScript 'open POSIX file' (and cross-tool calls) cannot use the
+# shell's working directory, so a relative pptx path would silently fail to open.
+SRC="$(cd "$(dirname "$SRC")" && pwd)/$(basename "$SRC")"
+OUTDIR="$(cd "$(dirname "$PDF")" && pwd)"; PDF="$OUTDIR/$(basename "$PDF")"
+PNG="$(cd "$(dirname "$PNG")" && pwd)/$(basename "$PNG")"
 BASE="$(basename "${SRC%.*}")"
+rm -f "$PDF"
 
 find_libreoffice() {
   for c in soffice libreoffice; do
@@ -26,17 +30,22 @@ render_libreoffice() {
 render_powerpoint_macos() {
   [ "$(uname)" = "Darwin" ] || return 1
   command -v osascript >/dev/null 2>&1 || return 1
-  osascript -e 'tell application "Microsoft PowerPoint" to quit saving no' 2>/dev/null; sleep 1
-  pkill -x "Microsoft PowerPoint" 2>/dev/null; sleep 1
+  pkill -9 -x "Microsoft PowerPoint" 2>/dev/null; sleep 2
   local try=0
-  while [ $try -lt 2 ]; do
+  while [ $try -lt 3 ]; do
+    open -a "Microsoft PowerPoint" 2>/dev/null
+    # Wait until PowerPoint actually answers AppleScript before driving it. Scripting it mid-launch
+    # gives -609 "Connection is invalid"; a fixed 'delay' is unreliable, so poll for readiness.
+    local i=0
+    while [ $i -lt 15 ]; do
+      osascript -e 'tell application "Microsoft PowerPoint" to name' >/dev/null 2>&1 && break
+      sleep 2; i=$((i+1))
+    done
     osascript >/dev/null 2>&1 <<OSA
 with timeout of 280 seconds
-	tell application "Microsoft PowerPoint" to launch
-	delay 3
 	tell application "Microsoft PowerPoint"
 		open POSIX file "$SRC"
-		delay 1
+		delay 2
 		set d to active presentation
 		save d in (POSIX file "$PDF" as string) as save as PDF
 		close d saving no
@@ -44,7 +53,7 @@ with timeout of 280 seconds
 end timeout
 OSA
     [ -f "$PDF" ] && break
-    pkill -x "Microsoft PowerPoint" 2>/dev/null; sleep 3; try=$((try+1))
+    pkill -9 -x "Microsoft PowerPoint" 2>/dev/null; sleep 3; try=$((try+1))
   done
   osascript -e 'tell application "Microsoft PowerPoint" to quit saving no' 2>/dev/null
   [ -f "$PDF" ]
@@ -56,4 +65,6 @@ if [ ! -f "$PDF" ]; then
   echo "RENDER FAILED: install LibreOffice (soffice/libreoffice on PATH) or run on macOS with Microsoft PowerPoint." >&2
   exit 1
 fi
-python3 -c "import pypdfium2 as p; im=p.PdfDocument('$PDF')[0].render(scale=$SCALE).to_pil(); im.save('$PNG'); print('rendered', im.size)"
+# Rasterize with pypdfium2 (self-contained; no poppler). Override the interpreter with
+# PYTHON=... if pypdfium2 lives in a specific env (e.g. PYTHON=python for a conda base).
+"${PYTHON:-python3}" -c "import pypdfium2 as p; im=p.PdfDocument('$PDF')[0].render(scale=$SCALE).to_pil(); im.save('$PNG'); print('rendered', im.size)"

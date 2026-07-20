@@ -10,8 +10,12 @@
    --convert-to pdf`. This is the portable path; most environments have LibreOffice or can install it.
 2. **Microsoft PowerPoint on macOS** (fallback): drives PowerPoint via AppleScript to export a PDF.
    It wraps the AppleScript in `with timeout of 280 seconds` (PowerPoint's default AppleEvent timeout
-   is ~120 s and chart-heavy or large posters exceed it, giving error -1712) and retries once on a
-   transient launch race (-600 / -609 / "Application isn't running").
+   is ~120 s and chart-heavy or large posters exceed it, giving error -1712), polls until PowerPoint
+   is actually ready to be scripted (a fixed delay races the launch and gives -609 "Connection is
+   invalid"), and retries up to 3 times. The first export on a machine also triggers a one-time macOS
+   prompt to allow the terminal to control PowerPoint. Approve it, or the export fails silently. If
+   you set `PYTHON=...`, that interpreter is used for the pypdfium2 rasterize step (handy when
+   pypdfium2 lives in a conda env rather than system `python3`).
 
 Then it rasterizes the PDF to PNG with **pypdfium2** (self-contained, no poppler needed). Render the
 abstract PDF directly with pypdfium2 as well.
